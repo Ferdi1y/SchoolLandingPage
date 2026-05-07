@@ -1,18 +1,12 @@
 <?php
 
+use App\Http\Controllers\AchievementController;
+use App\Http\Controllers\NewsController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PendaftaranController;
 use Inertia\Inertia;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\NewsController;
-use App\Http\Controllers\AchievementController;
-
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-*/
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -21,22 +15,14 @@ Route::get('/', function () {
         'laravelVersion' => Application::VERSION,
         'phpVersion' => PHP_VERSION,
     ]);
-});
+})->name('home');
 
-/*
-|--------------------------------------------------------------------------
-| Dashboard
-|--------------------------------------------------------------------------
-*/
-Route::get('/dashboard', function () {
-    return Inertia::render('DashboardBerita');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [NewsController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
-/*
-|--------------------------------------------------------------------------
-| Profile (Auth Required)
-|--------------------------------------------------------------------------
-*/
+Route::get('berita/{slug}', [NewsController::class, 'showberita'])->name('berita.show');
+
 Route::middleware('auth')->group(function () {
     Route::controller(ProfileController::class)->group(function () {
         Route::get('/profile', 'edit')->name('profile.edit');
@@ -44,28 +30,29 @@ Route::middleware('auth')->group(function () {
         Route::delete('/profile', 'destroy')->name('profile.destroy');
     });
 });
+Route::get('/pendaftaran', [PendaftaranController::class, 'create'])->name('pendaftaran.create');
+Route::post('/pendaftaran', [PendaftaranController::class, 'store'])->name('pendaftaran.store');
+Route::get('/pendaftaran/sukses', [PendaftaranController::class, 'success'])->name('pendaftaran.success');
 
-
-Route::middleware('auth')->group(function () {
-    Route::get('/news/create', [NewsController::class, 'create'])->name('news.create');
+// Admin Routes (gunakan middleware auth + role)
+Route::prefix('admin')->middleware('auth')->group(function () {
+    Route::get('/pendaftaran', [PendaftaranController::class, 'index'])->name('admin.pendaftaran.index');
+    Route::get('/pendaftaran/{id}', [PendaftaranController::class, 'show'])->name('admin.pendaftaran.show');
+    Route::post('/pendaftaran/{id}/verify', [PendaftaranController::class, 'verify'])->name('admin.pendaftaran.verify');
+    Route::get('/pendaftaran/{id}/edit', [PendaftaranController::class, 'edit'])->name('admin.pendaftaran.edit');
+    Route::put('/pendaftaran/{id}', [PendaftaranController::class, 'update'])->name('admin.pendaftaran.update');
 });
 
-// ✅ API
-Route::prefix('api')->group(function () {
+Route::resource('news', NewsController::class);
 
-    Route::apiResource('news', NewsController::class)->only(['index', 'show']);
+Route::prefix('api')->group(function () {
+    Route::get('/getBerita', [NewsController::class, 'getBerita']);
 
     Route::middleware('auth')->group(function () {
-        Route::apiResource('news', NewsController::class)
-            ->only(['store', 'update', 'destroy']);
+        // API auth routes here
     });
 });
 
-/*
-|--------------------------------------------------------------------------
-| Achievements
-|--------------------------------------------------------------------------
-*/
 Route::prefix('achievements')->controller(AchievementController::class)->group(function () {
     Route::get('/', 'index');
     Route::get('/featured', 'featured');

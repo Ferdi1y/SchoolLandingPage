@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\News;
 use App\Models\NewsCategory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use App\Http\Requests\NewsUpdateRequest;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -38,7 +40,7 @@ class NewsController extends Controller
 
         return Inertia::render('News/Index', [
             'news' => $news,
-            'categories' => $categories
+        'categories' => $categories
         ]);
     }
 
@@ -66,8 +68,9 @@ class NewsController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
-    {
+ public function store(Request $request)
+{
+    try {
         $validated = $request->validate([
             'news_category_id' => 'required|exists:news_categories,id',
             'title' => 'required|string|max:255',
@@ -75,29 +78,54 @@ class NewsController extends Controller
             'content' => 'required|string',
             'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'status' => 'required|in:draft,published,archived',
-            'is_featured' => 'boolean',
+            'is_featured' => 'nullable|boolean',
             'published_at' => 'nullable|date',
         ]);
 
-        // Auto-generate slug dari title
-        $slug = Str::slug($validated['title']);
-        
-        // Set user_id dari user yang login
-        $validated['user_id'] = auth()->id();
-        $validated['slug'] = $slug;
+        // Boolean handling
+        $validated['is_featured'] = $request->boolean('is_featured');
 
-        // Handle thumbnail upload
+        // Slug unik
+        $slug = Str::slug($validated['title']);
+        $count = DB::table('news')->where('slug', 'like', "$slug%")->count();
+        $validated['slug'] = $count ? "{$slug}-{$count}" : $slug;
+
+        // User login
+        $validated['user_id'] = auth()->id();
+
+        // Upload thumbnail
         if ($request->hasFile('thumbnail')) {
-            $path = $request->file('thumbnail')->store('news/thumbnails', 'public');
-            $validated['thumbnail'] = $path;
+            $validated['thumbnail'] = $request->file('thumbnail')
+                ->store('news/thumbnails', 'public');
         }
 
-        // Insert menggunakan query builder
-        $newsId = DB::table('news')->insertGetId($validated);
+        // Auto publish date
+        if ($validated['status'] === 'published' && empty($validated['published_at'])) {
+            $validated['published_at'] = now();
+        }
+
+        // Timestamp manual
+        $validated['created_at'] = now();
+        $validated['updated_at'] = now();
+
+        DB::table('news')->insert($validated);
 
         return redirect()->route('news.index')
             ->with('success', 'Berita berhasil ditambahkan');
+
+    } catch (\Throwable $e) {
+
+        // Log error (penting buat debugging)
+        Log::error('Gagal tambah berita', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+
+        return redirect()->back()
+            ->withInput()
+            ->with('error', 'Terjadi kesalahan saat menyimpan data');
     }
+}
 
     /**
      * Display the specified resource.
@@ -162,54 +190,83 @@ class NewsController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+       public function update(NewsUpdateRequest $request, string $id)
     {
-        // Cek apakah news exists
-        $news = DB::table('news')
-            ->where('id', $id)
-            ->whereNull('deleted_at')
-            ->first();
-        
-        if (!$news) {
-            abort(404);
-        }
-
-        $validated = $request->validate([
-            'news_category_id' => 'required|exists:news_categories,id',
-            'title' => 'required|string|max:255',
-            'excerpt' => 'nullable|string|max:200',
-            'content' => 'required|string',
-            'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'status' => 'required|in:draft,published,archived',
-            'is_featured' => 'boolean',
-            'published_at' => 'nullable|date',
-        ]);
-
-        // Update slug jika title berubah
-        if ($request->title !== $news->title) {
-            $validated['slug'] = Str::slug($validated['title']);
-        }
-
-        // Handle thumbnail upload
-        if ($request->hasFile('thumbnail')) {
-            // Hapus thumbnail lama
-            if ($news->thumbnail) {
-                Storage::disk('public')->delete($news->thumbnail);
+        try {
+            // Cek apakah berita exists
+            $news = DB::table('news')
+                ->where('id', $id)
+                ->whereNull('deleted_at')
+                ->first();
+ 
+            if (!$news) {
+                return redirect()
+                    ->route('news.index')
+                    ->with('error', 'Berita tidak ditemukan');
             }
-            
-            $path = $request->file('thumbnail')->store('news/thumbnails', 'public');
-            $validated['thumbnail'] = $path;
+ 
+            // Ambil data yang sudah divalidasi
+            $validated = $request->validated();
+ 
+            // Logika slug: hanya update jika title berubah
+            if ($request->title !== $news->title) {
+                $validated['slug'] = Str::slug($request->title);
+            } else {
+                // Jika title tidak berubah, gunakan slug lama
+                $validated['slug'] = $news->slug;
+            }
+ 
+            // Handle thumbnail upload HANYA jika ada file baru
+            if ($request->hasFile('thumbnail')) {
+                $file = $request->file('thumbnail');
+ 
+                // Validasi ulang file (security)
+                if (!$file->isValid()) {
+                    return redirect()
+                        ->back()
+                        ->withInput()
+                        ->with('error', 'File tidak valid. Silakan coba lagi.');
+                }
+ 
+                // Hapus file lama jika ada
+                if ($news->thumbnail && Storage::disk('public')->exists($news->thumbnail)) {
+                    Storage::disk('public')->delete($news->thumbnail);
+                }
+ 
+                // Store file baru
+                $path = $file->store('news/thumbnails', 'public');
+                $validated['thumbnail'] = $path;
+            } else {
+                // Jika tidak ada file baru, JANGAN ubah thumbnail
+                unset($validated['thumbnail']);
+            }
+ 
+            // Update timestamp
+            $validated['updated_at'] = now();
+ 
+            // Lakukan update
+            DB::table('news')
+                ->where('id', $id)
+                ->update($validated);
+ 
+            return redirect()
+                ->route('news.index')
+                ->with('success', 'Berita berhasil diperbarui!');
+ 
+        } catch (\Throwable $e) {
+            Log::error('Gagal update berita ID: ' . $id, [
+                'error'   => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ]);
+ 
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
-
-        // Update menggunakan query builder
-        DB::table('news')
-            ->where('id', $id)
-            ->update($validated);
-
-        return redirect()->route('news.index')
-            ->with('success', 'Berita berhasil diupdate');
     }
-
     /**
      * Remove the specified resource from storage.
      */
@@ -237,5 +294,50 @@ class NewsController extends Controller
 
         return redirect()->route('news.index')
             ->with('success', 'Berita berhasil dihapus');
+    }
+    public function getBerita(){
+        $news = DB::table('news')
+            ->join('users', 'news.user_id', '=', 'users.id')
+            ->join('news_categories', 'news.news_category_id', '=', 'news_categories.id')
+            ->select(
+                'news.*',
+                'users.name as user_name',
+                'news_categories.name as category_name',
+                'news_categories.color as category_color'
+            )
+            ->whereNull('news.deleted_at') // Soft delete
+            ->orderBy('news.created_at', 'desc')
+            ->get();
+
+        return response()->json($news);
+    }
+
+    public function showberita($slug)
+    {
+        // Query builder untuk mengambil detail news berdasarkan slug
+        $news = DB::table('news')
+            ->join('users', 'news.user_id', '=', 'users.id')
+            ->join('news_categories', 'news.news_category_id', '=', 'news_categories.id')
+            ->select(
+                'news.*',
+                'users.name as user_name',
+                'news_categories.name as category_name',
+                'news_categories.color as category_color'
+            )
+            ->where('news.slug', $slug)
+            ->whereNull('news.deleted_at')
+            ->first();
+        
+        if (!$news) {
+            abort(404);
+        }
+        // Increment views menggunakan query builder
+        DB::table('news')
+            ->where('id', $news->id)
+            ->increment('views_count');
+
+        return Inertia::render('showBerita', [
+            'news' => $news
+        ]);
     }
 }

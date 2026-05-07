@@ -29,4 +29,9 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+    
+    public function verifications()
+    {
+        return $this->hasMany(PendaftaranSiswa::class, 'verified_by');
+    }
 }
