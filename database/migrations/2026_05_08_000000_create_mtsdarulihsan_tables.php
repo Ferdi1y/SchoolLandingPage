@@ -11,17 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // ============================================
-        // 1. achievements
-        // ============================================
         Schema::create('achievements', function (Blueprint $table) {
             $table->id();
             $table->string('title');
             $table->text('description')->nullable();
             $table->string('photo')->nullable();
-            $table->enum('level', ['sekolah', 'kecamatan', 'kabupaten', 'provinsi', 'nasional', 'internasional'])->default('sekolah');
-            $table->enum('category', ['akademik', 'olahraga', 'seni', 'keagamaan', 'lainnya'])->default('akademik');
-            $table->enum('rank', ['Juara 1', 'Juara 2', 'Juara 3', 'Harapan 1', 'Harapan 2', 'Finalis', 'Peserta Terbaik'])->default('Juara 1');
+            
+            $table->string('level')->default('sekolah');
+            $table->string('category')->default('akademik');
+            $table->string('rank')->default('Juara 1');
+            
             $table->string('participant_name')->nullable();
             $table->date('achievement_date');
             $table->integer('academic_year')->nullable();
@@ -31,6 +30,26 @@ return new class extends Migration
             $table->index(['is_featured', 'achievement_date']);
         });
 
+        // ... (tabel lainnya tetap sama)
+
+        Schema::create('galleries', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('gallery_category_id')->constrained('gallery_categories')->cascadeOnDelete();
+            
+            // ✅ Ganti enum
+            $table->string('type')->default('photo');
+            
+            $table->string('title')->nullable();
+            $table->string('file_path')->nullable();
+            $table->string('video_url')->nullable();
+            $table->string('thumbnail')->nullable();
+            $table->string('file_size')->nullable();
+            $table->integer('sort_order')->default(0);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+
+            $table->index('gallery_category_id');
+        });
         // ============================================
         // 2. cache
         // ============================================
@@ -81,25 +100,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // ============================================
-        // 6. galleries
-        // ============================================
-        Schema::create('galleries', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('gallery_category_id')->constrained('gallery_categories')->cascadeOnDelete();
-            $table->enum('type', ['photo', 'video'])->default('photo');
-            $table->string('title')->nullable();
-            $table->string('file_path')->nullable();
-            $table->string('video_url')->nullable();
-            $table->string('thumbnail')->nullable();
-            $table->string('file_size')->nullable();
-            $table->integer('sort_order')->default(0);
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-
-            $table->index('gallery_category_id');
-        });
-
+    
         // ============================================
         // 7. jobs
         // ============================================
@@ -273,12 +274,7 @@ return new class extends Migration
             $table->longText('content');
 
             $table->string('thumbnail')->nullable();
-
-            $table->enum('status', [
-                'draft',
-                'published',
-                'archived'
-            ])->default('draft');
+            $table->string('status')->default('draft');
 
             $table->boolean('is_featured')->default(false);
 
