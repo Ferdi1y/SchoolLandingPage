@@ -6,50 +6,28 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
+        // ============================================
+        // 1. achievements
+        // ============================================
         Schema::create('achievements', function (Blueprint $table) {
             $table->id();
             $table->string('title');
             $table->text('description')->nullable();
             $table->string('photo')->nullable();
-            
             $table->string('level')->default('sekolah');
             $table->string('category')->default('akademik');
             $table->string('rank')->default('Juara 1');
-            
             $table->string('participant_name')->nullable();
             $table->date('achievement_date');
             $table->integer('academic_year')->nullable();
-            $table->boolean('is_featured')->default(false);
+            $table->boolean('is_featured')->default(0);
             $table->timestamps();
 
             $table->index(['is_featured', 'achievement_date']);
         });
 
-        // ... (tabel lainnya tetap sama)
-
-        Schema::create('galleries', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('gallery_category_id')->constrained('gallery_categories')->cascadeOnDelete();
-            
-            // ✅ Ganti enum
-            $table->string('type')->default('photo');
-            
-            $table->string('title')->nullable();
-            $table->string('file_path')->nullable();
-            $table->string('video_url')->nullable();
-            $table->string('thumbnail')->nullable();
-            $table->string('file_size')->nullable();
-            $table->integer('sort_order')->default(0);
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-
-            $table->index('gallery_category_id');
-        });
         // ============================================
         // 2. cache
         // ============================================
@@ -57,7 +35,6 @@ return new class extends Migration
             $table->string('key')->primary();
             $table->mediumText('value');
             $table->integer('expiration');
-
             $table->index('expiration');
         });
 
@@ -68,7 +45,6 @@ return new class extends Migration
             $table->string('key')->primary();
             $table->string('owner');
             $table->integer('expiration');
-
             $table->index('expiration');
         });
 
@@ -86,7 +62,7 @@ return new class extends Migration
         });
 
         // ============================================
-        // 5. gallery_categories
+        // 5. gallery_categories (PINDAH KE ATAS!)
         // ============================================
         Schema::create('gallery_categories', function (Blueprint $table) {
             $table->id();
@@ -96,11 +72,31 @@ return new class extends Migration
             $table->string('cover_image')->nullable();
             $table->date('event_date')->nullable();
             $table->integer('sort_order')->default(0);
-            $table->boolean('is_active')->default(true);
+            $table->boolean('is_active')->default(1);
             $table->timestamps();
         });
 
-    
+        // ============================================
+        // 6. galleries (SETELAH gallery_categories!)
+        // ============================================
+        Schema::create('galleries', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('gallery_category_id')
+                ->constrained('gallery_categories')
+                ->cascadeOnDelete();
+            $table->string('type')->default('photo');
+            $table->string('title')->nullable();
+            $table->string('file_path')->nullable();
+            $table->string('video_url')->nullable();
+            $table->string('thumbnail')->nullable();
+            $table->string('file_size')->nullable();
+            $table->integer('sort_order')->default(0);
+            $table->boolean('is_active')->default(1);
+            $table->timestamps();
+
+            $table->index('gallery_category_id');
+        });
+
         // ============================================
         // 7. jobs
         // ============================================
@@ -135,7 +131,7 @@ return new class extends Migration
         });
 
         // ============================================
-        // 9. migrations (biasanya sudah dibuat Laravel)
+        // 9. migrations
         // ============================================
         if (!Schema::hasTable('migrations')) {
             Schema::create('migrations', function (Blueprint $table) {
@@ -150,7 +146,7 @@ return new class extends Migration
         // ============================================
         Schema::create('personal_access_tokens', function (Blueprint $table) {
             $table->id();
-            $table->morphs('tokenable'); // tokenable_type + tokenable_id + index
+            $table->morphs('tokenable');
             $table->string('name');
             $table->string('token', 64)->unique();
             $table->text('abilities')->nullable();
@@ -199,7 +195,7 @@ return new class extends Migration
             $table->string('icon')->nullable();
             $table->string('color', 20)->default('#3B82F6');
             $table->integer('sort_order')->default(0);
-            $table->boolean('is_active')->default(true);
+            $table->boolean('is_active')->default(1);
             $table->timestamps();
         });
 
@@ -223,12 +219,12 @@ return new class extends Migration
             $table->string('nama', 10);
             $table->date('tanggal_mulai');
             $table->date('tanggal_selesai');
-            $table->boolean('is_active')->default(false);
+            $table->boolean('is_active')->default(0);
             $table->timestamps();
         });
 
         // ============================================
-        // 15. users
+        // 15. users (HARUS SEBELUM news!)
         // ============================================
         Schema::create('users', function (Blueprint $table) {
             $table->id();
@@ -239,51 +235,41 @@ return new class extends Migration
             $table->rememberToken();
             $table->timestamps();
         });
+
+        // ============================================
+        // 16. news_categories
+        // ============================================
         Schema::create('news_categories', function (Blueprint $table) {
             $table->id();
-
             $table->string('name');
             $table->string('slug')->unique();
-
             $table->string('color', 20)->default('#3B82F6');
-
             $table->integer('sort_order')->default(0);
-
-            $table->boolean('is_active')->default(true);
-
+            $table->boolean('is_active')->default(1);
             $table->timestamps();
         });
 
+        // ============================================
+        // 17. news
+        // ============================================
         Schema::create('news', function (Blueprint $table) {
             $table->id();
-
             $table->foreignId('news_category_id')
                 ->constrained('news_categories')
                 ->cascadeOnDelete();
-
             $table->foreignId('user_id')
                 ->constrained('users')
                 ->cascadeOnDelete();
-
             $table->string('title');
-
             $table->string('slug')->unique();
-
             $table->string('excerpt')->nullable();
-
             $table->longText('content');
-
             $table->string('thumbnail')->nullable();
             $table->string('status')->default('draft');
-
-            $table->boolean('is_featured')->default(false);
-
+            $table->boolean('is_featured')->default(0);
             $table->unsignedBigInteger('views_count')->default(0);
-
             $table->timestamp('published_at')->nullable();
-
             $table->timestamps();
-
             $table->softDeletes();
 
             $table->index('status');
@@ -291,12 +277,11 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        // Drop dalam urutan terbalik (perhatikan foreign key)
+        // Drop TERBALIK dari urutan create
+        Schema::dropIfExists('news');
+        Schema::dropIfExists('news_categories');
         Schema::dropIfExists('users');
         Schema::dropIfExists('tahun_ajaran');
         Schema::dropIfExists('sessions');
@@ -312,7 +297,5 @@ return new class extends Migration
         Schema::dropIfExists('cache_locks');
         Schema::dropIfExists('cache');
         Schema::dropIfExists('achievements');
-        Schema::dropIfExists('news_categories');
-        Schema::dropIfExists('news');
     }
 };
