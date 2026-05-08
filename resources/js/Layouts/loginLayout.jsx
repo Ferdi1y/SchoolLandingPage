@@ -1,6 +1,5 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import { Link } from '@inertiajs/react';
-import Footer from '@/Components/Footer';
 
 export default function loginLayout({ children }) {
     return (

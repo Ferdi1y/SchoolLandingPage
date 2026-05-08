@@ -1352,6 +1352,9 @@ function Footer() {
                   <a href="#" className="text-emerald-300/50 text-sm hover:text-amber-400 transition-colors">{l}</a>
                 </li>
               ))}
+                <a href="/login" className="text-emerald-300/50 text-sm hover:text-amber-400 transition-colors">Login</a>
+
+
             </ul>
           </div>
 

@@ -19,12 +19,19 @@ const navItems = [
     { label: 'Dashboard', href: 'dashboard', icon: LayoutDashboard },
     { label: 'Berita', href: 'news.index', icon: Newspaper },
     { label: 'Pendaftaran', href: 'admin.pendaftaran.index', icon: Newspaper },
+    { label: 'Users', href: 'users.index', icon: Users },
+    
 ];
 
 export default function AuthenticatedLayout({ header, children }) {
     const user = usePage().props.auth.user;
     const [mobileOpen, setMobileOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+        if (!user) {
+        return <div>Loading...</div>;
+    }
+
 
     const isActive = (routeName) => {
         try { return route().current(routeName) || route().current(routeName + '.*'); }
