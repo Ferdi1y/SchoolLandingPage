@@ -238,6 +238,61 @@ return new class extends Migration
             $table->rememberToken();
             $table->timestamps();
         });
+        Schema::create('news_categories', function (Blueprint $table) {
+            $table->id();
+
+            $table->string('name');
+            $table->string('slug')->unique();
+
+            $table->string('color', 20)->default('#3B82F6');
+
+            $table->integer('sort_order')->default(0);
+
+            $table->boolean('is_active')->default(true);
+
+            $table->timestamps();
+        });
+
+        Schema::create('news', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('news_category_id')
+                ->constrained('news_categories')
+                ->cascadeOnDelete();
+
+            $table->foreignId('user_id')
+                ->constrained('users')
+                ->cascadeOnDelete();
+
+            $table->string('title');
+
+            $table->string('slug')->unique();
+
+            $table->string('excerpt')->nullable();
+
+            $table->longText('content');
+
+            $table->string('thumbnail')->nullable();
+
+            $table->enum('status', [
+                'draft',
+                'published',
+                'archived'
+            ])->default('draft');
+
+            $table->boolean('is_featured')->default(false);
+
+            $table->unsignedBigInteger('views_count')->default(0);
+
+            $table->timestamp('published_at')->nullable();
+
+            $table->timestamps();
+
+            $table->softDeletes();
+
+            $table->index('status');
+            $table->index('is_featured');
+        });
     }
 
     /**
@@ -261,5 +316,7 @@ return new class extends Migration
         Schema::dropIfExists('cache_locks');
         Schema::dropIfExists('cache');
         Schema::dropIfExists('achievements');
+        Schema::dropIfExists('news_categories');
+        Schema::dropIfExists('news');
     }
 };
