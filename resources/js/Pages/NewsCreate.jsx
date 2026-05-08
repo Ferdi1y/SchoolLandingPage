@@ -1,6 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
-import NewsForm from '@/Components/News/NewsForm';
 
 export default function Create({ categories }) {
     return (
