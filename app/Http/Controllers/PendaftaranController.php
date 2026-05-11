@@ -349,4 +349,198 @@ public function update(Request $request, $id)
 
     return redirect()->route('admin.pendaftaran.index')
         ->with('success', 'Data pendaftaran berhasil diperbarui.');
-}}
+}/**
+     * Export Data Pendaftaran ke CSV (Admin)
+     */
+    public function export(Request $request)
+    {
+        try{
+        $query = DB::table('pendaftaran_siswa')
+            ->leftJoin('users', 'pendaftaran_siswa.verified_by', '=', 'users.id')
+            ->select(
+                'pendaftaran_siswa.nomor_pendaftaran',
+                'pendaftaran_siswa.tahun_ajaran',
+                'pendaftaran_siswa.nama_lengkap',
+                'pendaftaran_siswa.nisn',
+                'pendaftaran_siswa.nik',
+                'pendaftaran_siswa.tempat_lahir',
+                'pendaftaran_siswa.tanggal_lahir',
+                'pendaftaran_siswa.jenis_kelamin',
+                'pendaftaran_siswa.anak_ke',
+                'pendaftaran_siswa.jumlah_saudara',
+                'pendaftaran_siswa.alamat_lengkap',
+                'pendaftaran_siswa.rt',
+                'pendaftaran_siswa.rw',
+                'pendaftaran_siswa.kelurahan',
+                'pendaftaran_siswa.kecamatan',
+                'pendaftaran_siswa.kota_kabupaten',
+                'pendaftaran_siswa.provinsi',
+                'pendaftaran_siswa.kode_pos',
+                'pendaftaran_siswa.no_hp_siswa',
+                'pendaftaran_siswa.email',
+                'pendaftaran_siswa.nama_ayah',
+                'pendaftaran_siswa.pekerjaan_ayah',
+                'pendaftaran_siswa.pendidikan_ayah',
+                'pendaftaran_siswa.no_hp_ayah',
+                'pendaftaran_siswa.nama_ibu',
+                'pendaftaran_siswa.pekerjaan_ibu',
+                'pendaftaran_siswa.pendidikan_ibu',
+                'pendaftaran_siswa.no_hp_ibu',
+                'pendaftaran_siswa.nama_wali',
+                'pendaftaran_siswa.hubungan_wali',
+                'pendaftaran_siswa.no_hp_wali',
+                'pendaftaran_siswa.asal_sekolah',
+                'pendaftaran_siswa.alamat_sekolah',
+                'pendaftaran_siswa.tahun_lulus',
+                'pendaftaran_siswa.alasan_memilih_sekolah',
+                'pendaftaran_siswa.prestasi',
+                'pendaftaran_siswa.status',
+                'pendaftaran_siswa.tanggal_daftar',
+                'pendaftaran_siswa.tanggal_verifikasi',
+                'pendaftaran_siswa.catatan',
+                'users.name as verifier_name'
+            )
+            ->whereNull('pendaftaran_siswa.deleted_at');
+
+        // Filter berdasarkan status jika ada
+        if ($request->has('status') && $request->status !== 'all') {
+            $query->where('pendaftaran_siswa.status', $request->status);
+        }
+
+        // Filter berdasarkan tahun ajaran jika ada
+        if ($request->has('tahun_ajaran')) {
+            $query->where('pendaftaran_siswa.tahun_ajaran', $request->tahun_ajaran);
+        }
+
+        // Filter berdasarkan pencarian jika ada
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('pendaftaran_siswa.nama_lengkap', 'like', "%{$search}%")
+                  ->orWhere('pendaftaran_siswa.nomor_pendaftaran', 'like', "%{$search}%")
+                  ->orWhere('pendaftaran_siswa.nisn', 'like', "%{$search}%");
+            });
+        }
+
+        $data = $query->orderBy('pendaftaran_siswa.tanggal_daftar', 'desc')->get();
+
+        // Nama file dengan timestamp
+        $filename = 'pendaftaran_siswa_' . date('Y-m-d_His') . '.csv';
+
+        // Header untuk download
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0'
+        ];
+
+        $callback = function() use ($data) {
+            $file = fopen('php://output', 'w');
+            
+            // BOM untuk UTF-8 agar Excel bisa baca karakter Indonesia dengan benar
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+
+            // Header CSV
+            fputcsv($file, [
+                'Nomor Pendaftaran',
+                'Tahun Ajaran',
+                'Nama Lengkap',
+                'NISN',
+                'NIK',
+                'Tempat Lahir',
+                'Tanggal Lahir',
+                'Jenis Kelamin',
+                'Anak Ke',
+                'Jumlah Saudara',
+                'Alamat Lengkap',
+                'RT',
+                'RW',
+                'Kelurahan',
+                'Kecamatan',
+                'Kota/Kabupaten',
+                'Provinsi',
+                'Kode Pos',
+                'No. HP Siswa',
+                'Email',
+                'Nama Ayah',
+                'Pekerjaan Ayah',
+                'Pendidikan Ayah',
+                'No. HP Ayah',
+                'Nama Ibu',
+                'Pekerjaan Ibu',
+                'Pendidikan Ibu',
+                'No. HP Ibu',
+                'Nama Wali',
+                'Hubungan Wali',
+                'No. HP Wali',
+                'Asal Sekolah',
+                'Alamat Sekolah',
+                'Tahun Lulus',
+                'Alasan Memilih Sekolah',
+                'Prestasi',
+                'Status',
+                'Tanggal Daftar',
+                'Tanggal Verifikasi',
+                'Catatan',
+                'Diverifikasi Oleh'
+            ]);
+
+            // Data rows
+            foreach ($data as $row) {
+                fputcsv($file, [
+                    $row->nomor_pendaftaran,
+                    $row->tahun_ajaran,
+                    $row->nama_lengkap,
+                    $row->nisn,
+                    $row->nik,
+                    $row->tempat_lahir,
+                    $row->tanggal_lahir,
+                    $row->jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan',
+                    $row->anak_ke,
+                    $row->jumlah_saudara,
+                    $row->alamat_lengkap,
+                    $row->rt,
+                    $row->rw,
+                    $row->kelurahan,
+                    $row->kecamatan,
+                    $row->kota_kabupaten,
+                    $row->provinsi,
+                    $row->kode_pos,
+                    $row->no_hp_siswa,
+                    $row->email,
+                    $row->nama_ayah,
+                    $row->pekerjaan_ayah,
+                    $row->pendidikan_ayah,
+                    $row->no_hp_ayah,
+                    $row->nama_ibu,
+                    $row->pekerjaan_ibu,
+                    $row->pendidikan_ibu,
+                    $row->no_hp_ibu,
+                    $row->nama_wali,
+                    $row->hubungan_wali,
+                    $row->no_hp_wali,
+                    $row->asal_sekolah,
+                    $row->alamat_sekolah,
+                    $row->tahun_lulus,
+                    $row->alasan_memilih_sekolah,
+                    $row->prestasi,
+                    ucfirst($row->status),
+                    $row->tanggal_daftar,
+                    $row->tanggal_verifikasi,
+                    $row->catatan,
+                    $row->verifier_name
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }catch(\Exception $e){
+        dd($e->getMessage());
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+}
+}

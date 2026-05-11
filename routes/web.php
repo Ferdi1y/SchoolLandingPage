@@ -38,6 +38,8 @@ Route::get('/pendaftaran/sukses', [PendaftaranController::class, 'success'])->na
 // Admin Routes (gunakan middleware auth + role)
 Route::prefix('admin')->middleware('auth')->group(function () {
     Route::resource('users', UserController::class);
+        Route::get('/pendaftaran/export', [PendaftaranController::class, 'export'])->name('admin.pendaftaran.export');
+
     Route::get('/pendaftaran', [PendaftaranController::class, 'index'])->name('admin.pendaftaran.index');
     Route::get('/pendaftaran/{id}', [PendaftaranController::class, 'show'])->name('admin.pendaftaran.show');
     Route::post('/pendaftaran/{id}/verify', [PendaftaranController::class, 'verify'])->name('admin.pendaftaran.verify');
