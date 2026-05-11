@@ -22,6 +22,7 @@ Route::get('/dashboard', [NewsController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
+Route::get('/berita/all', [NewsController::class, 'allnews'])->name('berita.all');
 Route::get('berita/{slug}', [NewsController::class, 'showberita'])->name('berita.show');
 
 Route::middleware('auth')->group(function () {

@@ -340,4 +340,23 @@ class NewsController extends Controller
             'news' => $news
         ]);
     }
+    public function allnews()
+    {
+        $news = DB::table('news')
+            ->join('users', 'news.user_id', '=', 'users.id')
+            ->join('news_categories', 'news.news_category_id', '=', 'news_categories.id')
+            ->select(
+                'news.*',
+                'users.name as user_name',
+                'news_categories.name as category_name',
+                'news_categories.color as category_color'
+            )
+            ->whereNull('news.deleted_at') // Soft delete
+            ->orderBy('news.created_at', 'desc')
+            ->get();
+
+        return Inertia::render('allnews', [
+            'news' => $news
+        ]);
+        }
 }
