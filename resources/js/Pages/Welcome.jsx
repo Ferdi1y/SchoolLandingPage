@@ -945,7 +945,7 @@ function Berita() {
               Berita <span className="text-amber-500">Terbaru</span>
             </h2>
           </div>
-          <a href="/berita" className="text-emerald-700 font-semibold text-sm flex items-center gap-2 hover:text-amber-500 transition-colors group self-start">
+          <a href="/berita/all" className="text-emerald-700 font-semibold text-sm flex items-center gap-2 hover:text-amber-500 transition-colors group self-start">
             Lihat Semua
             <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
